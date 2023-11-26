@@ -1,4 +1,5 @@
-use tree::{trees::bintree::BinTree, recorddb::RecordDb};
+use tree::trees::bintree::plain::BinTree;
+use tree::recorddb::RecordDb;
 
 
 fn main() {

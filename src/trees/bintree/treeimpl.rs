@@ -1,34 +1,38 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::recorddb::RecordDb;
-
 #[derive(Debug)]
-struct BinTreeImpl<T, K: Ord + Copy> {
+struct Trunk<T, K: Ord + Copy> {
     key: K,
     value: T,
-    right: Option<BinTree<T, K>>,
-    left: Option<BinTree<T, K>>,
+    right: Option<BinTreeImpl<T, K>>,
+    left: Option<BinTreeImpl<T, K>>,
 }
 
 #[derive(Debug)]
-pub struct BinTree<T, K: Ord + Copy> {
-    t: Rc<RefCell<BinTreeImpl<T, K>>>,
+pub(super) struct BinTreeImpl<T, K: Ord + Copy> {
+    t: Rc<RefCell<Trunk<T, K>>>,
 }
 
-impl<T, K: Ord + Copy> BinTreeImpl<T, K> {
+#[derive(Debug)]
+pub(super) enum Bal {
+    None,
+    AVL,
+}
+
+impl<T, K: Ord + Copy> Trunk<T, K> {
     fn is_bifurcating(&self) -> bool {
         self.left.is_some() && self.right.is_some()
     }
 
-    fn take_right(&mut self) -> BinTree<T, K> {
+    fn take_right(&mut self) -> BinTreeImpl<T, K> {
         self.right.take().unwrap()
     }
 
-    fn take_left(&mut self) -> BinTree<T, K> {
+    fn take_left(&mut self) -> BinTreeImpl<T, K> {
         self.left.take().unwrap()
     }
 
-    fn take_rightmost_leaf(&mut self) -> BinTree<T, K> {
+    fn take_rightmost_leaf(&mut self) -> BinTreeImpl<T, K> {
         let right = self.right.as_ref().expect("No right branches at all");
         if right.t.borrow().right.is_some() {
             right.t.borrow_mut().take_rightmost_leaf()
@@ -37,7 +41,7 @@ impl<T, K: Ord + Copy> BinTreeImpl<T, K> {
         }
     }
 
-    fn take_floor_leaf(&mut self) -> BinTree<T, K> {
+    fn take_floor_leaf(&mut self) -> BinTreeImpl<T, K> {
         let left = self.left.as_ref().expect("Left branch does not exist.");
         if left.t.borrow().right.is_some() {
             left.t.borrow_mut().take_rightmost_leaf()
@@ -47,7 +51,7 @@ impl<T, K: Ord + Copy> BinTreeImpl<T, K> {
     }
 }
 
-impl<T, K: Ord + Copy> BinTree<T, K> {
+impl<T, K: Ord + Copy> BinTreeImpl<T, K> {
     fn find_parent(&self, child_key: K) -> (Option<Self>, Self, i8) {
         if self.t.borrow().key < child_key {
             if let Some(ref right) = self.t.borrow().right {
@@ -91,12 +95,10 @@ impl<T, K: Ord + Copy> BinTree<T, K> {
             self.t.borrow_mut().left = Some(branch);
         }
     }
-}
 
-impl<T, K: Ord + Copy> RecordDb<T, K> for BinTree<T, K> {
-    fn new(key: K, value: T) -> Self {
+    pub(super) fn new(key: K, value: T) -> Self {
         Self {
-            t: Rc::new(RefCell::new(BinTreeImpl {
+            t: Rc::new(RefCell::new(Trunk {
                 key,
                 value,
                 left: None,
@@ -105,12 +107,12 @@ impl<T, K: Ord + Copy> RecordDb<T, K> for BinTree<T, K> {
         }
     }
 
-    fn insert(&self, key: K, value: T) {
+    pub(super) fn insert(&self, key: K, value: T, bal: Bal) {
         if key < self.t.borrow().key {
             if self.t.borrow().left.is_none() {
                 self.t.borrow_mut().left = Some(Self::new(key, value));
             } else {
-                self.t.borrow().left.as_ref().unwrap().insert(key, value);
+                self.t.borrow().left.as_ref().unwrap().insert(key, value, bal);
             }
         } else if self.t.borrow().key < key {
             if self.t.borrow().right.is_none() {
@@ -121,14 +123,14 @@ impl<T, K: Ord + Copy> RecordDb<T, K> for BinTree<T, K> {
                     .right
                     .as_ref()
                     .unwrap()
-                    .insert(key, value);
+                    .insert(key, value, bal);
             }
         } else {
             panic!("The key already exists.")
         }
     }
 
-    fn delete(&self, key: K) {
+    pub(super) fn delete(&self, key: K, bal: Bal) {
         let (parent, target, pos) = self.find_parent(key);
         if target.t.borrow().is_bifurcating() {
             let replacing_reaf = target.t.borrow_mut().take_floor_leaf();
@@ -155,7 +157,7 @@ impl<T, K: Ord + Copy> RecordDb<T, K> for BinTree<T, K> {
         }
     }
 
-    fn find(&self, cand: K) -> (bool, K) {
+    pub(super) fn find(&self, cand: K) -> (bool, K) {
         if self.t.borrow().key == cand {
             return (true, cand);
         } else if cand < self.t.borrow().key {
