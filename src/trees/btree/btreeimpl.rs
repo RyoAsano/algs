@@ -1,7 +1,13 @@
 use core::{borrow, panic};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem::swap, rc::Rc};
 
 use super::{BTree, Chi, Trunk};
+
+#[repr(u8)]
+enum DelOp {
+    None,
+    NeedMerge,
+}
 
 impl<T, K: Ord + Copy> BTree<T, K> {
     pub fn is_full(&self) -> bool {
@@ -81,6 +87,121 @@ impl<T, K: Ord + Copy> BTree<T, K> {
                     } else {
                         None
                     }
+                }
+            }
+        }
+    }
+
+    fn merge_chi(&self, mut low: usize, mut high: usize) -> DelOp {
+        if low == high {
+            panic!("illigal use.");
+        } else if low > high {
+            swap(&mut low, &mut high);
+        }
+
+        let tree = self.0.unwrap_tr();
+        let mut newkeys = Vec::with_capacity(self.0.keycap() * 2);
+        newkeys.extend(
+            tree.borrow().chi[low]
+                .0
+                .unwrap_tr()
+                .borrow_mut()
+                .keys
+                .drain(..),
+        );
+        newkeys.extend(
+            tree.borrow().chi[high]
+                .0
+                .unwrap_tr()
+                .borrow_mut()
+                .keys
+                .drain(..),
+        );
+
+        let mut newchi = Vec::with_capacity(self.0.chicap() * 2);
+        newchi.extend(
+            tree.borrow().chi[low]
+                .0
+                .unwrap_tr()
+                .borrow_mut()
+                .chi
+                .drain(..),
+        );
+        newchi.extend(
+            tree.borrow().chi[high]
+                .0
+                .unwrap_tr()
+                .borrow_mut()
+                .chi
+                .drain(..),
+        );
+        if self.0.chicap() < newchi.len() {
+            let at = newchi.len() / 2;
+            let mut newhighkeys = Vec::with_capacity(self.0.chicap());
+            let mut newhighchi = Vec::with_capacity(self.0.chicap());
+            newhighkeys.extend(newkeys.split_off(at));
+            newhighchi.extend(newchi.split_off(at));
+            tree.borrow_mut().chi[high] = Self(Chi::Tr(Rc::new(RefCell::new(Trunk {
+                keys: newhighkeys,
+                chi: newhighchi,
+            }))));
+        } else {
+            tree.borrow_mut().chi.remove(high);
+        }
+        newkeys.shrink_to(self.0.keycap());
+        newchi.shrink_to(self.0.chicap());
+        newkeys.pop();
+        tree.borrow_mut().chi.insert(
+            low,
+            Self(Chi::Tr(Rc::new(RefCell::new(Trunk {
+                keys: newkeys,
+                chi: newchi,
+            })))),
+        );
+        todo!()
+    }
+
+    fn delete(&self, key: K) -> DelOp {
+        let chi = self.0.as_ref();
+        match chi {
+            Chi::Tr(tree) => {
+                let pos = match tree.borrow().keys.binary_search(&key) {
+                    Ok(pos) => pos,
+                    Err(pos) => pos,
+                };
+                let res = tree.borrow().chi[pos].delete(key);
+                if let DelOp::NeedMerge = res {
+                    if pos == 0 {
+                        self.merge_chi(0, 1);
+                    } else {
+                        self.merge_chi(pos - 1, pos);
+                    };
+                    let min = self.0.chicap();
+                    let min = min / 2 + min % 2;
+                    if tree.borrow().chi.len() < min {
+                        DelOp::NeedMerge
+                    } else {
+                        DelOp::None
+                    }
+                } else {
+                    DelOp::None
+                }
+            }
+            Chi::Br(branch) => {
+                let res = branch.borrow().keys.binary_search(&key);
+                if res.is_err() {
+                    panic!("The key was not found.");
+                }
+                let pos = res.unwrap();
+                branch.borrow_mut().keys.remove(pos);
+                branch.borrow_mut().chi.remove(pos);
+
+                let min = branch.borrow().chi.capacity();
+                let min = min / 2 + min % 2;
+                if branch.borrow().chi.len() < min {
+                    DelOp::NeedMerge
+                } else {
+                    DelOp::None
                 }
             }
         }

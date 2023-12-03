@@ -3,6 +3,9 @@ pub mod btreeimpl;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
+pub struct BTree<T, K: Ord>(Chi<Rc<RefCell<Trunk<BTree<T, K>, K>>>, Rc<RefCell<Trunk<T, K>>>>);
+
+#[derive(Debug)]
 struct Trunk<ChiTy, K: Ord> {
     keys: Vec<K>,
     chi: Vec<ChiTy>,
@@ -80,6 +83,3 @@ impl<T, K: Ord + Copy> Chi<Rc<RefCell<Trunk<BTree<T, K>, K>>>, Rc<RefCell<Trunk<
         }
     }
 }
-
-#[derive(Debug)]
-pub struct BTree<T, K: Ord>(Chi<Rc<RefCell<Trunk<BTree<T, K>, K>>>, Rc<RefCell<Trunk<T, K>>>>);
