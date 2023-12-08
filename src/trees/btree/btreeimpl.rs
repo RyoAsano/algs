@@ -15,10 +15,10 @@ impl<T, K: Ord + Copy> BTree<T, K> {
     }
 
     pub fn new(max: usize) -> Self {
-        Self(Chi::Br(Rc::new(RefCell::new(Trunk {
+        Self(Chi::Br(RefCell::new(Trunk {
             keys: Vec::with_capacity(max),
             chi: Vec::with_capacity(max + 1),
-        }))))
+        })))
     }
 
     pub fn insert(self: Self, key: K, value: T) -> Self {
@@ -29,7 +29,7 @@ impl<T, K: Ord + Copy> BTree<T, K> {
             let mut chi = Vec::with_capacity(self.0.chicap());
             chi.extend([self, newbr]);
 
-            Self(Chi::Tr(Rc::new(RefCell::new(Trunk { keys, chi }))))
+            Self(Chi::Tr(RefCell::new(Trunk { keys, chi })))
         } else {
             self
         }
@@ -60,7 +60,7 @@ impl<T, K: Ord + Copy> BTree<T, K> {
                         // Remove the last key because it's redundant.
                         tree.borrow_mut().keys.pop();
 
-                        Some(Self(Chi::Tr(Rc::new(RefCell::new(Trunk { keys, chi })))))
+                        Some(Self(Chi::Tr(RefCell::new(Trunk { keys, chi }))))
                     } else {
                         None
                     }
@@ -83,7 +83,7 @@ impl<T, K: Ord + Copy> BTree<T, K> {
                         let at = branch.borrow().keys.len() / 2;
                         keys.extend(branch.borrow_mut().keys.split_off(at));
                         chi.extend(branch.borrow_mut().chi.split_off(at));
-                        Some(Self(Chi::Br(Rc::new(RefCell::new(Trunk { keys, chi })))))
+                        Some(Self(Chi::Br(RefCell::new(Trunk { keys, chi }))))
                     } else {
                         None
                     }
@@ -141,10 +141,10 @@ impl<T, K: Ord + Copy> BTree<T, K> {
             let mut newhighchi = Vec::with_capacity(self.0.chicap());
             newhighkeys.extend(newkeys.split_off(at));
             newhighchi.extend(newchi.split_off(at));
-            tree.borrow_mut().chi[high] = Self(Chi::Tr(Rc::new(RefCell::new(Trunk {
+            tree.borrow_mut().chi[high] = Self(Chi::Tr(RefCell::new(Trunk {
                 keys: newhighkeys,
                 chi: newhighchi,
-            }))));
+            })));
         } else {
             tree.borrow_mut().chi.remove(high);
         }
@@ -153,10 +153,10 @@ impl<T, K: Ord + Copy> BTree<T, K> {
         newkeys.pop();
         tree.borrow_mut().chi.insert(
             low,
-            Self(Chi::Tr(Rc::new(RefCell::new(Trunk {
+            Self(Chi::Tr(RefCell::new(Trunk {
                 keys: newkeys,
                 chi: newchi,
-            })))),
+            }))),
         );
         todo!()
     }

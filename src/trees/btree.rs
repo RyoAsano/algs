@@ -3,7 +3,7 @@ pub mod btreeimpl;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
-pub struct BTree<T, K: Ord>(Chi<Rc<RefCell<Trunk<BTree<T, K>, K>>>, Rc<RefCell<Trunk<T, K>>>>);
+pub struct BTree<T, K: Ord>(Chi<RefCell<Trunk<BTree<T, K>, K>>, RefCell<Trunk<T, K>>>);
 
 #[derive(Debug)]
 struct Trunk<ChiTy, K: Ord> {
@@ -40,7 +40,7 @@ impl<TrTy, BrTy> Chi<TrTy, BrTy> {
     }
 }
 
-impl<T, K: Ord + Copy> Chi<Rc<RefCell<Trunk<BTree<T, K>, K>>>, Rc<RefCell<Trunk<T, K>>>> {
+impl<T, K: Ord + Copy> Chi<RefCell<Trunk<BTree<T, K>, K>>, RefCell<Trunk<T, K>>> {
     fn keycap(&self) -> usize {
         match self {
             Chi::Br(branch) => branch.borrow().keys.capacity(),
