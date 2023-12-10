@@ -17,6 +17,12 @@ fn main() {
     t.insert(6, "hey");
     println!("{:#?}", t);
     t.insert(7, "hey");
+
+    match t.find(7) {
+        Ok(val) => println!("FOUND!! {:?}", val),
+        Err(msg) => println!("{}", msg),
+    };
+
     println!("{:#?}", t);
     t.delete(7);
     println!("{:#?}", t);
@@ -31,5 +37,4 @@ fn main() {
     t.delete(2);
     println!("{:#?}", t);
     t.delete(1);
-
 }

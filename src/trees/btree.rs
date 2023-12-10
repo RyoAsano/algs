@@ -2,7 +2,7 @@ mod branch;
 mod trunk;
 
 use std::{
-    cell::{Ref, RefCell},
+    cell::RefCell,
     rc::Rc,
 };
 
@@ -16,7 +16,7 @@ pub struct Trunk<T, K: Ord> {
 #[derive(Debug)]
 pub struct Branch<T, K: Ord> {
     keys: Vec<K>,
-    vals: Vec<T>,
+    vals: Vec<Rc<RefCell<T>>>,
 }
 
 #[derive(Debug)]
@@ -65,26 +65,21 @@ impl<T, K: Ord + Copy> BTree<T, K> {
         })))
     }
 
-    // pub fn find<'a >(&'a self, key: K) -> Result<Ref<'a, T>, String> {
-    //     match self {
-    //         BTree::Br(ref br) => match br.borrow().keys.binary_search(&key) {
-    //             Ok(pos) => Ok(Ref::map(br.borrow(), |br| &br.vals[pos])),
-    //             Err(_) => Err("Not found".to_string()),
-    //         },
-    //         BTree::Tr(ref tr) => {
-    //             let pos = match tr.borrow().keys.binary_search(&key) {
-    //                 Ok(pos) => pos,
-    //                 Err(pos) => pos,
-    //             };
-    //             let val: Ref<'a, _> = Ref::map(tr.borrow(), |tr| &tr.vals[pos]);
-    //             // there seems no workaround for returning reference...
-    //             match val.find(key) {
-    //                 Ok(res) => Ok(res),
-    //                 Err(res) => Err(res),
-    //             }
-    //         }
-    //     }
-    // }
+    pub fn find(&self, key: K) -> Result<Rc<RefCell<T>>, String> {
+        match self {
+            BTree::Br(ref br) => match br.borrow().keys.binary_search(&key) {
+                Ok(pos) => Ok(br.borrow().vals[pos].clone()),
+                Err(_) => Err("Not found".to_string()),
+            },
+            BTree::Tr(ref tr) => {
+                let pos = match tr.borrow().keys.binary_search(&key) {
+                    Ok(pos) => pos,
+                    Err(pos) => pos,
+                };
+                tr.borrow().vals[pos].find(key)
+            }
+        }
+    }
 
     pub fn insert(&mut self, key: K, value: T) {
         match self {

@@ -1,3 +1,5 @@
+use std::{rc::Rc, cell::RefCell};
+
 use super::Branch;
 
 impl<T, K: Ord + Copy> Branch<T, K> {
@@ -19,7 +21,7 @@ impl<T, K: Ord + Copy> Branch<T, K> {
             Err(pos) => pos,
         };
         self.keys.insert(pos, key);
-        self.vals.insert(pos, value);
+        self.vals.insert(pos, Rc::new(RefCell::new(value)));
 
         if self.keys.len() == self.keys.capacity() {
             let mut keys = Vec::with_capacity(self.keys.capacity());
